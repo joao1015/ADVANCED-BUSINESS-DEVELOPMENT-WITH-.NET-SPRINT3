@@ -1,52 +1,50 @@
-🚀 RadarMottuAPI
-API RESTful em .NET 8 (C#) para a disciplina Advanced Business Development with .NET — Sprint 3.
-Domínio: RadarMottu (gestão/rastreamento de motos com Tags BLE e Anchors/antenas).
-Entrega com CRUD completo, paginação + HATEOAS, e Swagger/OpenAPI com exemplos.
+# 🚀 RadarMottuAPI
 
-👥 Integrantes
-João Paulo Moreira dos Santos — RM 557808
+API RESTful em **.NET 8** (C#) para a disciplina **Advanced Business Development with .NET — Sprint 3**.  
+Domínio: **RadarMottu** (gestão/rastreamento de motos com **Tags BLE** e **Anchors/antenas**).  
+Entrega com **CRUD completo**, **paginação + HATEOAS**, e **Swagger/OpenAPI** com exemplos.
 
-(adicione aqui demais integrantes/RMs, se houver)
+---
 
-🎯 Objetivos da Sprint (rubrica)
-3 entidades principais: Motos, Tags, Anchors
+## 👥 Integrantes
 
-CRUD com status codes adequados
+- **João Paulo Moreira dos Santos — RM 557808**  
+- *(adicione aqui demais integrantes/RMs, se houver)*
 
-Boas práticas REST (rotas, verbos, códigos, ids)
+---
 
-Paginação + HATEOAS em listagens
+## 🎯 Objetivos da Sprint (rubrica)
 
-Swagger/OpenAPI com exemplos de payload e modelos
+- **3 entidades principais**: `Motos`, `Tags`, `Anchors`  
+- **CRUD** com status codes adequados  
+- **Boas práticas REST** (rotas, verbos, códigos, ids)  
+- **Paginação** + **HATEOAS** em listagens  
+- **Swagger/OpenAPI** com exemplos de payload e modelos  
+- **README completo** com instruções e exemplos  
+- **Projeto compila e roda** ✅
 
-README completo com instruções e exemplos
+---
 
-Projeto compila e roda ✅
+## 🏍️ Domínio & Justificativa (25 pts)
 
-🏍️ Domínio & Justificativa (25 pts)
-Moto: ativo principal (frota)
+- **Moto**: ativo principal (frota)  
+- **Tag (BLE)**: identificador instalado na moto; emite sinais para leitura  
+- **Anchor (Antena/ESP32)**: ponto fixo que lê as tags e ajuda a estimar posição
 
-Tag (BLE): identificador instalado na moto; emite sinais para leitura
+> O trio **Moto–Tag–Anchor** representa fielmente um cenário de **rastreio de ativos**.  
+> Atende às necessidades de CRUD, consulta paginada e navegação (HATEOAS), demonstrando práticas REST.
 
-Anchor (Antena/ESP32): ponto fixo que lê as tags e ajuda a estimar posição
+---
 
-O trio Moto–Tag–Anchor representa fielmente um cenário de rastreio de ativos.
-Atende às necessidades de CRUD, consulta paginada e navegação (HATEOAS), demonstrando práticas REST.
+## 🧱 Arquitetura
 
-🧱 Arquitetura
-.NET 8 Web API
+- **.NET 8 Web API**
+- **Entity Framework Core 9** (SQLite por padrão; suporta SQL Server/Azure SQL)
+- **Swashbuckle.AspNetCore 9** (Swagger/OpenAPI + UI)
+- **DTOs** para contratos de entrada/saída
+- **HATEOAS** para navegação de páginas
 
-Entity Framework Core 9 (SQLite por padrão; suporta SQL Server/Azure SQL)
-
-Swashbuckle.AspNetCore 9 (Swagger/OpenAPI + UI)
-
-DTOs para contratos de entrada/saída
-
-HATEOAS para navegação de páginas
-
-Estrutura de pastas:
-
-text
+**Estrutura de pastas:**
 RadarMottuAPI/
 ├─ Controllers/
 ├─ Data/
@@ -59,20 +57,27 @@ RadarMottuAPI/
 ├─ appsettings.json
 ├─ Program.cs
 └─ RadarMottuAPI.csproj
-🧰 Tecnologias & Pacotes
-.NET SDK: 8.0+
 
-EF Core: 9.0.0
-Microsoft.EntityFrameworkCore, Sqlite, SqlServer, Tools
+text
 
-Swagger:
-Swashbuckle.AspNetCore (9.0.5) + Swashbuckle.AspNetCore.Filters (9.0.0)
+---
 
-Se usar SQL Server/Azure, troque o provider no Program.cs e a connection em appsettings.json.
+## 🧰 Tecnologias & Pacotes
 
-⚙️ Configuração & Execução (local)
-1) Restaurar pacotes
-bash
+- **.NET SDK**: 8.0+
+- **EF Core**: 9.0.0  
+  `Microsoft.EntityFrameworkCore`, `Sqlite`, `SqlServer`, `Tools`
+- **Swagger**:  
+  `Swashbuckle.AspNetCore (9.0.5)` + `Swashbuckle.AspNetCore.Filters (9.0.0)`
+
+> Se usar SQL Server/Azure, troque o provider no `Program.cs` e a connection em `appsettings.json`.
+
+---
+
+## ⚙️ Configuração & Execução (local)
+
+### 1) Restaurar pacotes
+```bash
 dotnet restore
 2) Criar banco via EF Core (SQLite por padrão)
 bash
