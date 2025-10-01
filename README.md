@@ -7,12 +7,11 @@ Entrega com **CRUD completo**, **paginação + HATEOAS**, e **Swagger/OpenAPI** 
 ---
 
 ## 👥 Integrantes
-
+-  **Arthur Bispo de Lima — RM 557568**
 - **João Paulo Moreira dos Santos — RM 557808**  
-- *(adicione aqui demais integrantes/RMs, se houver)*
+- **Paulo André Carminati — RM 557881**  
 
 ---
-
 ## 🎯 Objetivos da Sprint (rubrica)
 
 - **3 entidades principais**: `Motos`, `Tags`, `Anchors`  
@@ -106,7 +105,7 @@ json
 Trocar para SQL Server/Azure (opcional)
 No Program.cs, substitua UseSqlite(conn) por UseSqlServer(conn) e use "AzureSql".
 
-📖 Swagger / OpenAPI (15 pts)
+## 📖 Swagger / OpenAPI (15 pts)
 Interface disponível em: http://localhost:5154/swagger
 
 Documentação gerada automaticamente com exemplos de payload (via Swagger/Examples.cs).
