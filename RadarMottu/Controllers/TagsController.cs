@@ -1,78 +1,103 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RadarMottuAPI.Data;
-using RadarMottuAPI.Models;
-using RadarMottuAPI.Services;
+﻿using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
+using RadarMottuAPI.Dtos;
 
-namespace RadarMottuAPI.Controllers;
+namespace RadarMottuAPI.Controllers.v1;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/tags")]
+[ApiVersion("1.0")]
+[Authorize]
 public class TagsController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    private readonly HateoasLinkBuilder _links;
+    private readonly IMongoCollection<BsonDocument> _tags;
 
-    public TagsController(AppDbContext context, HateoasLinkBuilder links)
+    public TagsController(IMongoDatabase db)
     {
-        _context = context;
-        _links = links;
+        _tags = db.GetCollection<BsonDocument>("tags");
     }
 
+    /// <summary>Lista as tags</summary>
     [HttpGet]
-    public async Task<ActionResult<PagedResult<Tag>>> GetTags([FromQuery] PaginationQuery query)
+    [AllowAnonymous] // deixe anônimo enquanto testa
+    public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var total = await _context.Tags.CountAsync();
-        var items = await _context.Tags
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .ToListAsync();
-
-        var result = new PagedResult<Tag>
-        {
-            Items = items,
-            Page = query.Page,
-            PageSize = query.PageSize,
-            TotalItems = total
-        };
-
-        result.Links.AddRange(_links.GetLinks("Tags", query.Page, query.PageSize, total));
+        var list = await _tags.Find(FilterDefinition<BsonDocument>.Empty).Limit(200).ToListAsync(ct);
+        // Mapeia p/ saída amigável
+        var result = list.Select(d => new {
+            id = d.GetValue("_id", BsonNull.Value).ToString(),
+            codigo = d.GetValue("codigo", "").AsString,
+            mac = d.GetValue("mac", "").AsString,
+            rssiCalibrado = d.Contains("rssiCalibrado") ? d["rssiCalibrado"].ToInt32() : 0,
+            bateriaPercent = d.Contains("bateriaPercent") ? d["bateriaPercent"].ToInt32() : 0,
+            status = d.GetValue("status", "").AsString
+        });
         return Ok(result);
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Tag>> GetTag(int id)
-    {
-        var tag = await _context.Tags.FindAsync(id);
-        if (tag == null) return NotFound();
-        return Ok(tag);
-    }
-
+    /// <summary>Cria uma tag</summary>
     [HttpPost]
-    public async Task<ActionResult<Tag>> PostTag(Tag tag)
+    [Consumes("application/json")]
+    public async Task<IActionResult> Create([FromBody] TagCreateDto dto, CancellationToken ct)
     {
-        _context.Tags.Add(tag);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetTag), new { id = tag.Id }, tag);
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var doc = new BsonDocument {
+            { "codigo", dto.Codigo },
+            { "mac", dto.Mac },
+            { "rssiCalibrado", dto.RssiCalibrado },
+            { "bateriaPercent", dto.BateriaPercent },
+            { "status", dto.Status }
+        };
+
+        await _tags.InsertOneAsync(doc, cancellationToken: ct);
+
+        return CreatedAtAction(nameof(GetAll), new { }, new
+        {
+            id = doc["_id"].ToString(),
+            codigo = dto.Codigo,
+            mac = dto.Mac,
+            rssiCalibrado = dto.RssiCalibrado,
+            bateriaPercent = dto.BateriaPercent,
+            status = dto.Status
+        });
     }
 
+    /// <summary>Atualiza uma tag</summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutTag(int id, Tag tag)
+    [Consumes("application/json")]
+    public async Task<IActionResult> Update(string id, [FromBody] TagUpdateDto dto, CancellationToken ct)
     {
-        if (id != tag.Id) return BadRequest();
-        _context.Entry(tag).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+        if (!ObjectId.TryParse(id, out var oid)) return NotFound("id inválido");
+
+        var update = Builders<BsonDocument>.Update
+            .Set("codigo", dto.Codigo)
+            .Set("mac", dto.Mac)
+            .Set("rssiCalibrado", dto.RssiCalibrado)
+            .Set("bateriaPercent", dto.BateriaPercent)
+            .Set("status", dto.Status);
+
+        var result = await _tags.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", oid),
+            update,
+            cancellationToken: ct);
+
+        if (result.MatchedCount == 0) return NotFound();
+
         return NoContent();
     }
 
+    /// <summary>Remove uma tag</summary>
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteTag(int id)
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        var tag = await _context.Tags.FindAsync(id);
-        if (tag == null) return NotFound();
-
-        _context.Tags.Remove(tag);
-        await _context.SaveChangesAsync();
+        if (!ObjectId.TryParse(id, out var oid)) return NotFound("id inválido");
+        var result = await _tags.DeleteOneAsync(Builders<BsonDocument>.Filter.Eq("_id", oid), ct);
+        if (result.DeletedCount == 0) return NotFound();
         return NoContent();
     }
 }

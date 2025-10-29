@@ -1,78 +1,115 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RadarMottuAPI.Data;
-using RadarMottuAPI.Models;
-using RadarMottuAPI.Services;
+﻿using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
-namespace RadarMottuAPI.Controllers;
+namespace RadarMottuAPI.Controllers.v1;
+
+public record AnchorCreateDto(string Nome, double Latitude, double Longitude, double RangeMeters, string Status);
+public record AnchorReadDto(string Id, string Nome, double Latitude, double Longitude, double RangeMeters, string Status);
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/anchors")]
+[ApiVersion("1.0")]
+[Authorize] // deixe [AllowAnonymous] nos endpoints enquanto testa, se quiser
 public class AnchorsController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    private readonly HateoasLinkBuilder _links;
+    private readonly IMongoCollection<BsonDocument> _anchors;
 
-    public AnchorsController(AppDbContext context, HateoasLinkBuilder links)
+    public AnchorsController(IMongoDatabase db)
     {
-        _context = context;
-        _links = links;
+        _anchors = db.GetCollection<BsonDocument>("anchors");
     }
 
+    // GET /api/v1/anchors
     [HttpGet]
-    public async Task<ActionResult<PagedResult<Anchor>>> GetAnchors([FromQuery] PaginationQuery query)
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IEnumerable<AnchorReadDto>), 200)]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var total = await _context.Anchors.CountAsync();
-        var items = await _context.Anchors
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .ToListAsync();
+        var docs = await _anchors.Find(FilterDefinition<BsonDocument>.Empty)
+                                 .Limit(200)
+                                 .ToListAsync(ct);
 
-        var result = new PagedResult<Anchor>
+        // Se quiser sem "seed", remova este bloco:
+        if (docs.Count == 0)
         {
-            Items = items,
-            Page = query.Page,
-            PageSize = query.PageSize,
-            TotalItems = total
-        };
+            var seed = new[]
+            {
+                new BsonDocument { { "nome", "Anchor A-01" }, { "latitude", -23.53 }, { "longitude", -46.70 }, { "rangeMeters", 12.5 }, { "status", "ativo" } },
+                new BsonDocument { { "nome", "Anchor A-02" }, { "latitude", -23.54 }, { "longitude", -46.71 }, { "rangeMeters", 10.0 }, { "status", "ativo" } }
+            };
+            await _anchors.InsertManyAsync(seed, cancellationToken: ct);
+            docs = seed.ToList();
+        }
 
-        result.Links.AddRange(_links.GetLinks("Anchors", query.Page, query.PageSize, total));
+        var result = docs.Select(d => new AnchorReadDto(
+            d["_id"].AsObjectId.ToString(),
+            d.GetValue("nome", "").AsString,
+            d.GetValue("latitude", 0d).ToDouble(),
+            d.GetValue("longitude", 0d).ToDouble(),
+            d.GetValue("rangeMeters", 0d).ToDouble(),
+            d.GetValue("status", "").AsString
+        ));
+
         return Ok(result);
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Anchor>> GetAnchor(int id)
+    // GET /api/v1/anchors/{id}
+    [HttpGet("{id:length(24)}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AnchorReadDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetById(string id, CancellationToken ct)
     {
-        var anchor = await _context.Anchors.FindAsync(id);
-        if (anchor == null) return NotFound();
-        return Ok(anchor);
+        if (!ObjectId.TryParse(id, out var oid)) return NotFound();
+
+        var doc = await _anchors.Find(Builders<BsonDocument>.Filter.Eq("_id", oid))
+                                .FirstOrDefaultAsync(ct);
+        if (doc is null) return NotFound();
+
+        var dto = new AnchorReadDto(
+            doc["_id"].AsObjectId.ToString(),
+            doc.GetValue("nome", "").AsString,
+            doc.GetValue("latitude", 0d).ToDouble(),
+            doc.GetValue("longitude", 0d).ToDouble(),
+            doc.GetValue("rangeMeters", 0d).ToDouble(),
+            doc.GetValue("status", "").AsString
+        );
+
+        return Ok(dto);
     }
 
+    // POST /api/v1/anchors
     [HttpPost]
-    public async Task<ActionResult<Anchor>> PostAnchor(Anchor anchor)
+    [ProducesResponseType(typeof(AnchorReadDto), 201)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> Create([FromBody] AnchorCreateDto anchor, CancellationToken ct)
     {
-        _context.Anchors.Add(anchor);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetAnchor), new { id = anchor.Id }, anchor);
-    }
+        if (anchor is null) return BadRequest("Corpo inválido.");
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutAnchor(int id, Anchor anchor)
-    {
-        if (id != anchor.Id) return BadRequest();
-        _context.Entry(anchor).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-        return NoContent();
-    }
+        var doc = new BsonDocument
+        {
+            { "nome", anchor.Nome },
+            { "latitude", anchor.Latitude },
+            { "longitude", anchor.Longitude },
+            { "rangeMeters", anchor.RangeMeters },
+            { "status", anchor.Status },
+            { "createdAt", DateTime.UtcNow }
+        };
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteAnchor(int id)
-    {
-        var anchor = await _context.Anchors.FindAsync(id);
-        if (anchor == null) return NotFound();
+        await _anchors.InsertOneAsync(doc, cancellationToken: ct);
 
-        _context.Anchors.Remove(anchor);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var read = new AnchorReadDto(
+            doc["_id"].AsObjectId.ToString(),
+            anchor.Nome,
+            anchor.Latitude,
+            anchor.Longitude,
+            anchor.RangeMeters,
+            anchor.Status
+        );
+
+        return CreatedAtAction(nameof(GetById), new { id = read.Id, version = "1.0" }, read);
     }
 }

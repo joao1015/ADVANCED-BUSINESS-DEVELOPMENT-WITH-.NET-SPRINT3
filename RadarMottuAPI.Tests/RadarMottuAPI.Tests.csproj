@@ -9,6 +9,7 @@
 
 	<ItemGroup>
 		<!-- Test runner / asserts -->
+		<PackageReference Include="Asp.Versioning.Abstractions" Version="8.1.0" />
 		<PackageReference Include="xunit" Version="2.9.3" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
 			<PrivateAssets>all</PrivateAssets>
@@ -24,7 +25,6 @@
 
 	<ItemGroup>
 		<!-- Referência ao projeto da API -->
-		<ProjectReference Include="..\RadarMottuAPI\RadarMottuAPI.csproj" />
 		<ProjectReference Include="..\RadarMottu\RadarMottuAPI.csproj" />
 	</ItemGroup>
 

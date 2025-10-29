@@ -1,5 +1,18 @@
-﻿namespace RadarMottuAPI.Dtos;
+﻿// Dtos/TagDtos.cs
+namespace RadarMottuAPI.Dtos;
 
-public record TagCreateDto(string Uid, int BatteryLevel, string Status, int? MotoId);
-public record TagUpdateDto(string Uid, int BatteryLevel, string Status, int? MotoId);
-public record TagReadDto(int Id, string Uid, int BatteryLevel, string Status, int? MotoId);
+public record TagCreateDto(
+    string Codigo,
+    string Mac,
+    int RssiCalibrado,
+    int BateriaPercent,
+    string Status
+);
+
+public record TagUpdateDto(
+    string Codigo,
+    string Mac,
+    int RssiCalibrado,
+    int BateriaPercent,
+    string Status
+);
